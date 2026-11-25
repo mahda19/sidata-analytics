@@ -12,10 +12,35 @@ st.markdown('''<style>
 st.markdown('<div class="hero"><h1>SIDATA Analytics</h1><p>Statistik Sektoral • Kanwil Kementerian Agama Provinsi Jawa Tengah</p></div>',unsafe_allow_html=True)
 NAMES={'1':'Tata Kelola dan Dukungan Manajemen','2':'Pelayanan Keagamaan','3':'Pendidikan Agama dan Pendidikan Keagamaan'}
 st.sidebar.header('Sumber data')
-st.sidebar.caption('Unggah satu atau beberapa file per bab. Tahun dibaca dari judul tabel.')
-uploads={b:st.sidebar.file_uploader(n,type='xlsx',accept_multiple_files=True,key='upload'+b) for b,n in NAMES.items()}
+import json
+from google_data import export_url, download_excel, WorkbookSource
+st.sidebar.caption('Data publik yang telah disetujui saja. Tahun dibaca dari judul tabel.')
+config=json.loads(Path(__file__).with_name('sources.json').read_text(encoding='utf-8'))
+mode=st.sidebar.radio('Pilih sumber data',['Google Sheets / Drive otomatis','Upload Excel manual'])
+if mode=='Google Sheets / Drive otomatis':
+    uploads={b:[] for b in NAMES}
+    configured=any(config.get(b) for b in NAMES)
+    if st.sidebar.button('Perbarui data Google'):
+        download_excel.clear()
+    for b,n in NAMES.items():
+        links=config.get(b,[])
+        if not configured:
+            raw=st.sidebar.text_area('Link Bab '+b,placeholder='https://docs.google.com/spreadsheets/d/...',key='google'+b,help='Satu link per baris. Gunakan file sumber yang telah disetujui untuk publikasi.')
+            links=raw.splitlines()
+        for i,link in enumerate(links,1):
+            if not link.strip(): continue
+            try:
+                with st.spinner('Mengambil data Bab '+b+' dari Google…'):
+                    blob=download_excel(export_url(link))
+                uploads[b].append(WorkbookSource(f'{b}_Google_{i}.xlsx',blob))
+            except Exception as e:
+                st.error(f'Bab {b}, sumber {i}: {e}')
+        if uploads[b]: st.sidebar.success(f'Bab {b}: {len(uploads[b])} file tersedia')
+    if not configured: st.sidebar.info('Isi link sumber untuk mencoba. Untuk memuat otomatis bagi semua pengunjung, isi sources.json di GitHub.')
+else:
+    uploads={b:st.sidebar.file_uploader(n,type='xlsx',accept_multiple_files=True,key='upload'+b) for b,n in NAMES.items()}
 menu=st.sidebar.radio('Menu utama',['Dashboard','Analisis statistik','Pemeriksaan & validasi','Agregasi','Grafik tambahan','Clustering 4 model'])
-st.sidebar.caption('Prototipe lokal • Data tidak disimpan permanen. Jangan unggah data internal ke aplikasi publik.')
+st.sidebar.caption('Data publik saja • Jangan unggah data internal ke aplikasi publik.')
 # No global upload cache for public deployment: results live in this session.
 sig=tuple((b,f.name,hashlib.sha256(f.getvalue()).hexdigest()) for b,fs in uploads.items() for f in fs)
 if st.session_state.get('signature')!=sig:
@@ -38,7 +63,7 @@ if not st.session_state.issues.empty:
     mixed=st.session_state.issues[st.session_state.issues.Catatan.str.contains("berbeda dari mayoritas",na=False)]
     for _,r in mixed.iterrows(): st.warning(f"Bab {r.Bab} / {r.Sheet}: {r.Catatan}")
 if df.empty:
-    st.info('Mulai dengan mengunggah file Excel pada panel kiri. Filter dan grafik akan muncul setelah data terbaca.')
+    st.info('Isi link Google atau unggah file Excel pada panel kiri. Filter dan grafik akan muncul setelah data terbaca.')
     st.markdown('### Filter Analisis Statistik')
     a,b,c,d=st.columns(4)
     a.selectbox('Tahun data',['Belum ada data'],disabled=True); b.selectbox('Kelompok data',list(NAMES.values()),disabled=True); c.selectbox('Kabupaten/kota',['Seluruh wilayah'],disabled=True); d.selectbox('Indikator',['Unggah data dahulu'],disabled=True)
@@ -89,11 +114,11 @@ elif menu=='Analisis statistik':
         fig.update_layout(template='plotly_white',height=480,margin=dict(l=20,r=20,t=30,b=20)); st.plotly_chart(fig,use_container_width=True); st.download_button('Unduh grafik interaktif (HTML)',fig.to_html(include_plotlyjs=True).encode(),'grafik.html','text/html')
     st.dataframe(view,use_container_width=True,hide_index=True); st.download_button('Unduh data sesuai filter (CSV)',view.to_csv(index=False).encode('utf-8-sig'),'data_filter.csv','text/csv')
     if len(good): st.dataframe(good.Nilai.describe().rename('Nilai').to_frame(),use_container_width=True)
-    st.caption('Rata-rata dan median merupakan ringkasan antarwilayah, bukan nilai agregat provinsi. Nilai kosong/error tidak diganti nol. Tahun dan kelompok mengikuti file yang diunggah.')
+    st.caption('Rata-rata dan median merupakan ringkasan antarwilayah, bukan nilai agregat provinsi. Nilai kosong/error tidak diganti nol. Tahun dan kelompok mengikuti file sumber.')
 else:
     st.subheader(menu); task={'Pemeriksaan & validasi':'validasi','Agregasi':'agregasi','Grafik tambahan':'analisis','Clustering 4 model':'clustering'}[menu]
     year=st.selectbox('Tahun data',years)
-    if year!=2026 or any((int(year),b) not in st.session_state.sources for b in NAMES): st.info('Modul lama dipetakan untuk tiga file tahun 2026. Unggah ketiga bab 2026 untuk menjalankannya.'); st.stop()
+    if year!=2026 or any((int(year),b) not in st.session_state.sources for b in NAMES): st.info('Modul lama dipetakan untuk tiga file tahun 2026. Sediakan ketiga bab 2026 untuk menjalankannya.'); st.stop()
     if st.button('Jalankan / ulangi analisis',type='primary'):
         try:
             from engine import execute

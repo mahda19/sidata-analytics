@@ -1,0 +1,13 @@
+SIDATA Analytics – Integrasi Google
+
+1. Buka Google Sites dalam mode edit. Temukan file Google Sheets atau Excel di Drive yang disematkan. Salin link Bagikan dari file sumber, bukan URL Google Sites.
+2. Pastikan hanya data yang telah disetujui untuk publikasi yang digunakan. File sumber harus dapat dibaca tanpa login (uji dengan Incognito). Jangan membuka akses file internal demi menjalankan aplikasi.
+3. Uji aplikasi: pilih Google Sheets / Drive otomatis, tempel link setiap bab di sidebar. Satu link per baris; bisa beberapa tahun. Tahun dibaca dari A3 masing-masing sheet sesuai struktur V2.
+4. Agar pengunjung langsung melihat data tanpa memasukkan link, edit sources.json. Contoh struktur (ganti semua link contoh):
+   {"1":["https://docs.google.com/spreadsheets/d/ID_BAB_I/edit"],"2":["https://docs.google.com/spreadsheets/d/ID_BAB_II/edit"],"3":["https://docs.google.com/spreadsheets/d/ID_BAB_III/edit"]}
+   Hanya masukkan link data publik. Bila konfigurasi terisi, sidebar menggunakan link tetap, bukan input pengguna. Upload Excel manual tetap tersedia.
+5. Unggah app.py, google_data.py, sources.json, requirements.txt ke root repository GitHub SIDATA yang sudah ada. File lama lainnya tetap dipertahankan. Commit. Streamlit Cloud akan memuat perubahan.
+6. Lokal/Jupyter: %pip install -r requirements.txt lalu jalankan !{sys.executable} -m streamlit run app.py (import sys dahulu) di folder aplikasi.
+7. Perbarui data Google menghapus cache unduhan Google dan memuat ulang. Cache 5 menit; pembaruan terjadi saat aplikasi dijalankan ulang, bukan polling latar belakang.
+8. Google Sites bukan database. Link Sites, PDF, tabel HTML, Google Sheets khusus publikasi /d/e/ dan file yang membutuhkan login tidak didukung oleh versi ini. Drive dapat menampilkan halaman konfirmasi unduhan; jika demikian gunakan Google Sheets yang disetujui atau upload manual.
+9. Struktur workbook harus sama seperti V2. Ekspor Google Sheets dapat mengubah rumus/validasi; modul lama untuk 2026 perlu diverifikasi kembali. Tidak ada autentikasi admin atau verifikasi publikasi otomatis.
